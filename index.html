@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Feelings Pit</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Space+Mono:wght@400;700&family=Newsreader:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #131318;
+    --text: #e8e4df;
+    --text-dim: #7a7680;
+    --text-faint: #4a4650;
+    --pit-color: #c97b3a;
+    --pit-glow: #c97b3a33;
+    --void-color: #5a5a6e;
+    --void-glow: #5a5a6e33;
+    --accent: #c97b3a;
+    --sad: #5b8fb9;
+    --mad: #d4764e;
+    --scared: #c9a84c;
+    --joyful: #d4b84e;
+    --powerful: #7db87a;
+    --peaceful: #6aaa7a;
+    --warning: #b84a4a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Newsreader', serif; min-height: 100vh; overflow-x: hidden; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pillPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes pillRemove { to { transform: scale(0); opacity: 0; } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--pit-glow), 0 0 40px var(--pit-glow); } 50% { box-shadow: 0 0 0 16px transparent, 0 0 60px var(--pit-glow); } }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+
+  /* ─── SHARED ─── */
+  .step-header { font-family: 'Space Mono', monospace; font-size: 0.65em; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.15em; padding: 32px 30px 0; }
+  .back-btn {
+    font-family: 'Space Mono', monospace; font-size: 0.7em; color: var(--text-faint);
+    background: none; border: none; cursor: pointer; padding: 0;
+    text-decoration: underline; text-underline-offset: 3px; transition: color 0.2s;
+    display: inline-block; margin-top: 6px; padding: 0 30px;
+  }
+  .back-btn:hover { color: var(--text-dim); }
+
+  /* ─── SPLASH ─── */
+  .splash { justify-content: center; align-items: center; padding: 40px 30px; text-align: center; animation: fadeIn 0.8s ease; position: relative; overflow: hidden; }
+  .quotes-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; z-index: 0; }
+  .floating-quote {
+    position: absolute; font-family: 'Newsreader', serif; font-style: italic; line-height: 1.5;
+    color: var(--text); opacity: 0; white-space: nowrap; transition: opacity 0.6s ease, color 0.3s; cursor: default; padding: 4px 0;
+  }
+  .floating-quote:hover { opacity: 0.45 !important; color: var(--pit-color); }
+  .splash-content { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; }
+  .splash-icon { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, var(--pit-color), #2a1a0a); margin: 0 auto 32px; animation: pulse 3s ease-in-out infinite; }
+  .splash h1 { font-family: 'DM Serif Display', serif; font-size: 2.4em; letter-spacing: -0.02em; margin-bottom: 24px; background: linear-gradient(135deg, var(--text), var(--pit-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .code-of-conduct { font-family: 'Space Mono', monospace; font-size: 0.72em; line-height: 1.8; color: var(--text-dim); border: 1px solid #ffffff0a; background: rgba(10,10,12,0.88); backdrop-filter: blur(12px); border-radius: 12px; padding: 24px; margin-bottom: 36px; text-align: left; }
+  .code-of-conduct strong { color: var(--pit-color); display: block; margin-bottom: 8px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.1em; }
+  .enter-btn { font-family: 'Space Mono', monospace; font-size: 0.85em; padding: 16px 48px; border: 1px solid var(--pit-color); background: rgba(10,10,12,0.7); backdrop-filter: blur(8px); color: var(--pit-color); border-radius: 100px; cursor: pointer; transition: all 0.3s; letter-spacing: 0.05em; }
+  .enter-btn:hover { background: var(--pit-color); color: var(--bg); }
+  .read-link { font-family: 'Space Mono', monospace; font-size: 0.72em; color: var(--text-faint); margin-top: 16px; cursor: pointer; border: none; background: none; text-decoration: underline; text-underline-offset: 3px; transition: color 0.3s; }
+  .read-link:hover { color: var(--text-dim); }
+
+  /* ─── CHOICE ─── */
+  .choice-screen { justify-content: center; align-items: center; padding: 40px 30px; gap: 20px; }
+  .choice-screen h2 { font-family: 'DM Serif Display', serif; font-size: 1.8em; margin-bottom: 8px; }
+  .choice-screen .subtitle { font-size: 0.95em; color: var(--text-dim); margin-bottom: 32px; font-style: italic; }
+  .choice-cards { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+  .choice-card { border: 1px solid #ffffff0a; background: var(--surface); border-radius: 16px; padding: 28px 24px; cursor: pointer; transition: all 0.35s; position: relative; overflow: hidden; }
+  .choice-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; transition: opacity 0.35s; border-radius: 16px; }
+  .choice-card.pit::before { background: radial-gradient(ellipse at bottom, var(--pit-glow), transparent 70%); }
+  .choice-card.void::before { background: radial-gradient(ellipse at bottom, var(--void-glow), transparent 70%); }
+  .choice-card:hover::before { opacity: 1; }
+  .choice-card:hover { border-color: #ffffff15; transform: translateY(-2px); }
+  .choice-card h3 { font-family: 'DM Serif Display', serif; font-size: 1.3em; margin-bottom: 8px; position: relative; }
+  .choice-card.pit h3 { color: var(--pit-color); }
+  .choice-card.void h3 { color: var(--void-color); }
+  .choice-card p { font-size: 0.88em; color: var(--text-dim); line-height: 1.6; position: relative; }
+
+  /* ─── DUMP ─── */
+  .dump-screen { padding: 0 0 30px; flex: 1; display: flex; flex-direction: column; }
+  .dump-header { padding: 0 30px 24px; }
+  .dump-screen h2 { font-family: 'DM Serif Display', serif; font-size: 1.6em; margin-bottom: 6px; }
+  .dump-permission { font-size: 0.82em; color: var(--text-dim); font-style: italic; margin-bottom: 24px; line-height: 1.6; }
+  .dump-destination { font-family: 'Space Mono', monospace; font-size: 0.65em; text-transform: uppercase; letter-spacing: 0.12em; padding: 6px 14px; border-radius: 100px; display: inline-block; margin-bottom: 20px; }
+  .dump-destination.pit { color: var(--pit-color); border: 1px solid var(--pit-color); }
+  .dump-destination.void { color: var(--void-color); border: 1px solid var(--void-color); }
+  .dump-body { padding: 0 30px; flex: 1; display: flex; flex-direction: column; }
+  .textarea-wrap { position: relative; flex: 1; }
+  .dump-textarea { width: 100%; height: 100%; min-height: 240px; background: var(--surface); border: 1px solid #ffffff0a; border-radius: 12px; padding: 20px; padding-bottom: 36px; color: var(--text); font-family: 'Newsreader', serif; font-size: 1.05em; line-height: 1.7; resize: none; outline: none; transition: border-color 0.3s; }
+  .dump-textarea::placeholder { color: var(--text-faint); font-style: italic; }
+  .dump-textarea:focus { border-color: #ffffff18; }
+  .dump-textarea.flagged { border-color: var(--warning); animation: shake 0.4s ease; }
+  .char-count { position: absolute; bottom: 12px; right: 16px; font-family: 'Space Mono', monospace; font-size: 0.62em; color: var(--text-faint); pointer-events: none; transition: color 0.3s; }
+  .char-count.warn { color: var(--warning); }
+  .mod-banner {
+    font-family: 'Space Mono', monospace; font-size: 0.72em; line-height: 1.7;
+    color: var(--warning); background: rgba(184,74,74,0.08);
+    border: 1px solid rgba(184,74,74,0.2); border-radius: 10px;
+    padding: 14px 18px; margin-top: 12px; display: none;
+  }
+  .mod-banner.visible { display: block; animation: fadeIn 0.3s ease; }
+  .mod-banner .mod-title { font-weight: 700; margin-bottom: 4px; }
+  .mod-banner .mod-sub { color: var(--text-faint); font-size: 0.92em; }
+  .mod-banner .mod-void-hint {
+    color: var(--void-color); margin-top: 8px; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 3px;
+    background: none; border: none; font-family: inherit; font-size: inherit; padding: 0;
+  }
+  .mod-banner .mod-void-hint:hover { color: var(--text-dim); }
+  .dump-footer { padding: 0 30px; margin-top: 16px; display: flex; justify-content: flex-end; }
+  .dump-next { font-family: 'Space Mono', monospace; font-size: 0.8em; padding: 14px 36px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 100px; cursor: pointer; transition: all 0.3s; }
+  .dump-next:hover { background: var(--accent); color: var(--bg); }
+  .dump-next:disabled { opacity: 0.3; cursor: not-allowed; }
+  .dump-next:disabled:hover { background: transparent; color: var(--accent); }
+
+  /* ─── FEELINGS ─── */
+  .feelings-screen { padding: 0 30px 120px; display: flex; flex-direction: column; }
+  .feelings-header { padding-top: 0; }
+  .feelings-screen h2 { font-family: 'DM Serif Display', serif; font-size: 1.6em; margin-bottom: 6px; }
+  .feelings-subtitle { font-size: 0.85em; color: var(--text-dim); font-style: italic; margin-bottom: 16px; }
+  .selected-pills { min-height: 44px; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; padding: 10px 0; border-bottom: 1px solid #ffffff0a; }
+  .selected-pills:empty::after { content: 'tap the wheel to name your feelings…'; font-family: 'Space Mono', monospace; font-size: 0.68em; color: var(--text-faint); font-style: italic; display: flex; align-items: center; }
+  .selected-pill { font-family: 'Space Mono', monospace; font-size: 0.7em; padding: 7px 14px; border-radius: 100px; color: var(--bg); cursor: pointer; font-weight: 700; animation: pillPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-flex; align-items: center; gap: 6px; transition: transform 0.15s; }
+  .selected-pill:hover { transform: scale(0.95); }
+  .selected-pill .x { font-size: 0.85em; opacity: 0.6; font-weight: 400; }
+  .selected-pill.removing { animation: pillRemove 0.25s ease forwards; }
+  .wheel-wrapper { position: relative; width: 100%; max-width: 420px; margin: 0 auto 20px; }
+  .wheel-container { width: 100%; aspect-ratio: 1; position: relative; }
+  .wheel-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .wheel-segment { cursor: pointer; }
+  .wheel-segment path { transition: filter 0.15s; stroke: #0a0a0c; stroke-width: 1.5; }
+  .wheel-segment:hover path { filter: brightness(1.3); }
+  .wheel-segment.selected path { filter: brightness(1.4) saturate(1.3); stroke: #fff; stroke-width: 2.5; }
+  .wheel-segment text { pointer-events: none; user-select: none; }
+  .wheel-hover-label { position: absolute; pointer-events: none; font-family: 'DM Serif Display', serif; font-size: 1.5em; color: var(--text); background: var(--surface); border: 1px solid #ffffff15; border-radius: 12px; padding: 10px 22px; white-space: nowrap; opacity: 0; transform: translate(-50%, -50%) scale(0.8); transition: opacity 0.15s, transform 0.15s; z-index: 50; box-shadow: 0 8px 32px rgba(0,0,0,0.6); text-align: center; left: 50%; top: 50%; }
+  .wheel-hover-label.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .wheel-hover-label .cat-label { font-family: 'Space Mono', monospace; font-size: 0.4em; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 2px; opacity: 0.7; }
+  .release-btn { font-family: 'Space Mono', monospace; font-size: 0.85em; padding: 18px 48px; border: none; border-radius: 100px; cursor: pointer; transition: all 0.3s; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100; letter-spacing: 0.05em; max-width: 360px; width: calc(100% - 60px); }
+  .release-btn.pit { background: var(--pit-color); color: var(--bg); }
+  .release-btn.void { background: var(--void-color); color: var(--bg); }
+  .release-btn:hover:not(:disabled) { transform: translateX(-50%) scale(1.03); }
+  .release-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ─── DONE ─── */
+  .done-screen { justify-content: center; align-items: center; text-align: center; padding: 40px 30px; }
+  .done-screen h2 { font-family: 'DM Serif Display', serif; font-size: 2em; margin-bottom: 12px; }
+  .done-screen p { color: var(--text-dim); font-style: italic; margin-bottom: 32px; line-height: 1.7; max-width: 320px; }
+  .done-feelings { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 40px; }
+  .done-feeling { font-family: 'Space Mono', monospace; font-size: 0.7em; padding: 8px 16px; border-radius: 100px; color: var(--bg); font-weight: 700; }
+  .another-round { font-family: 'Space Mono', monospace; font-size: 0.78em; color: var(--text-dim); background: none; border: 1px solid #ffffff12; padding: 14px 32px; border-radius: 100px; cursor: pointer; transition: all 0.3s; margin-bottom: 12px; display: block; }
+  .another-round:hover { border-color: var(--accent); color: var(--accent); }
+  .done-home { font-family: 'Space Mono', monospace; font-size: 0.7em; color: var(--text-faint); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ─── READ ─── */
+  .read-screen { padding: 30px; padding-bottom: 100px; }
+  .read-screen h2 { font-family: 'DM Serif Display', serif; font-size: 1.6em; margin-bottom: 6px; }
+  .read-subtitle { font-size: 0.85em; color: var(--text-dim); font-style: italic; margin-bottom: 28px; }
+  .read-entry { background: var(--surface); border: 1px solid #ffffff0a; border-radius: 14px; padding: 24px; margin-bottom: 16px; animation: fadeIn 0.5s ease; }
+  .read-entry-text { font-size: 0.95em; line-height: 1.75; color: var(--text); margin-bottom: 16px; white-space: pre-wrap; word-break: break-word; }
+  .read-entry-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .read-entry-feelings { display: flex; flex-wrap: wrap; gap: 6px; }
+  .read-feeling-tag { font-family: 'Space Mono', monospace; font-size: 0.6em; padding: 5px 12px; border-radius: 100px; color: var(--bg); opacity: 0.85; font-weight: 700; }
+  .read-entry-time { font-family: 'Space Mono', monospace; font-size: 0.6em; color: var(--text-faint); flex-shrink: 0; }
+  .read-back { font-family: 'Space Mono', monospace; font-size: 0.75em; color: var(--text-dim); background: none; border: 1px solid #ffffff12; padding: 12px 28px; border-radius: 100px; cursor: pointer; transition: all 0.3s; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); }
+  .read-back:hover { border-color: var(--accent); color: var(--accent); }
+  .empty-pit { text-align: center; padding: 60px 20px; color: var(--text-faint); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SPLASH -->
+  <div id="splash" class="screen splash active">
+    <div id="quotesBg" class="quotes-bg"></div>
+    <div class="splash-content">
+      <div class="splash-icon"></div>
+      <h1>The Feelings Pit</h1>
+      <div class="code-of-conduct">
+        <strong>Line 1 of the Code of Conduct</strong>
+        Nobody here is responsible for your feelings.<br>
+        You are not responsible for anyone else's.<br><br>
+        Dump freely. Read if you want. Leave when you're done.<br><br>
+        <span style="color:var(--text-faint);font-size:0.9em">Explicit, hateful, or inappropriate content will not be posted.</span>
+      </div>
+      <button class="enter-btn" onclick="goTo('choice')">Enter</button>
+      <button class="read-link" onclick="goTo('read')">or just read →</button>
+    </div>
+  </div>
+
+  <!-- CHOICE -->
+  <div id="choice" class="screen choice-screen">
+    <div>
+      <p class="step-header">Step 1 of 3</p>
+      <h2>Choose your destination.</h2>
+      <p class="subtitle">Where do your words go?</p>
+    </div>
+    <div class="choice-cards">
+      <div class="choice-card pit" onclick="chooseDest('pit')">
+        <h3>The Pit</h3>
+        <p>Your words go anonymous. Others can read them. You will be witnessed.</p>
+      </div>
+      <div class="choice-card void" onclick="chooseDest('void')">
+        <h3>The Void</h3>
+        <p>Your words go nowhere. Pure release. No one will ever see this.</p>
+      </div>
+    </div>
+    <button class="back-btn" onclick="goTo('splash')">← Back</button>
+  </div>
+
+  <!-- DUMP -->
+  <div id="dump" class="screen dump-screen">
+    <div class="dump-header">
+      <p class="step-header">Step 2 of 3</p>
+      <h2>Dump it.</h2>
+      <p class="dump-permission">Be as dramatic and one-sided as you want. This is your version. No one is grading this.</p>
+      <span id="dumpDest" class="dump-destination pit">→ The Pit</span>
+    </div>
+    <div class="dump-body">
+      <div class="textarea-wrap">
+        <textarea id="dumpText" class="dump-textarea" placeholder="Start writing. There's no wrong way to do this…"></textarea>
+        <span id="charCount" class="char-count"></span>
+      </div>
+      <div id="modBanner" class="mod-banner">
+        <div class="mod-title">This can't go in the pit.</div>
+        <div class="mod-sub" id="modReason">Your feelings are valid, but this content isn't safe for others to read. Try rewriting it focused on how you feel rather than explicit details.</div>
+        <button class="mod-void-hint" onclick="switchToVoid()">Send it to the void instead →</button>
+      </div>
+    </div>
+    <div class="dump-footer">
+      <button id="dumpNext" class="dump-next" onclick="handleNext()" disabled>Name it →</button>
+    </div>
+    <button class="back-btn" onclick="goTo('choice')">← Back</button>
+  </div>
+
+  <!-- FEELINGS -->
+  <div id="feelings" class="screen feelings-screen">
+    <div class="feelings-header">
+      <p class="step-header">Step 3 of 3</p>
+      <h2>Name it.</h2>
+      <p class="feelings-subtitle">Hover or tap the wheel. No need to be precise.</p>
+    </div>
+    <div id="selectedPills" class="selected-pills"></div>
+    <div class="wheel-wrapper">
+      <div class="wheel-container">
+        <svg id="feelingsWheel" class="wheel-svg" viewBox="0 0 700 700" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div id="hoverLabel" class="wheel-hover-label">
+        <span class="cat-label"></span>
+        <span class="feeling-label"></span>
+      </div>
+    </div>
+    <button id="releaseBtn" class="release-btn pit" onclick="releaseIt()" disabled>Release into the Pit</button>
+  </div>
+
+  <!-- DONE -->
+  <div id="done" class="screen done-screen">
+    <h2 id="doneTitle">Released.</h2>
+    <p id="doneSubtitle">Your words have been witnessed.</p>
+    <div id="doneFeelings" class="done-feelings"></div>
+    <button class="another-round" onclick="anotherRound()">Is there more underneath?</button>
+    <button class="done-home" onclick="goHome()">I'm done</button>
+  </div>
+
+  <!-- READ -->
+  <div id="read" class="screen read-screen">
+    <p class="step-header">Read Mode</p>
+    <h2>Witness.</h2>
+    <p class="read-subtitle">No comments. No reactions. Just read.</p>
+    <div id="readEntries"></div>
+    <button class="read-back" onclick="goHome()">← Back</button>
+  </div>
+
+</div>
+
+<script>
+// ─── CONTENT MODERATION ───
+const BLOCKED_PATTERNS = [
+  /\bn[i1l][g9]{1,2}[e3a]/i, /\bf[a@]gg?[o0]?t/i, /\bk[i1]ke/i, /\bch[i1]nk/i, /\bsp[i1]c/i,
+  /\bwetback/i, /\btr[a@]nn/i, /\bretard/i,
+  /\b(c[o0]ck|d[i1]ck|p[e3]n[i1]s)\b/i, /\b(pussy|cunt)\b/i,
+  /\b(cum|cumm|cumming|jizz)\b/i, /\bf[u\*]ck(ed|ing|s)?\s+(her|him|them|me)\b/i,
+  /\b(blow\s?job|hand\s?job|rim\s?job)\b/i, /\b(anal|oral)\s+(sex)\b/i,
+  /\bporn/i, /\bhentai/i, /\bnude[s]?\b/i, /\borgy/i,
+  /\b(shoot|stab|bomb|attack)\s+(up|them|you|the|a)\b/i,
+  /\bshould\s+(all\s+)?die\b/i, /\bdeserve[s]?\s+to\s+die\b/i,
+  /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/,
+  /\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/,
+  /\b(buy\s+now|click\s+here|free\s+money|subscribe|promo\s+code)\b/i,
+  /https?:\/\/\S+/i,
+];
+
+const THREAT_PATTERNS = [
+  /\b(shoot|stab|bomb|attack)\s+(up|them|you|the|a)\b/i,
+  /\bshould\s+(all\s+)?die\b/i, /\bdeserve[s]?\s+to\s+die\b/i,
+  /\bi('m|\s+am)\s+going\s+to\s+(hurt|harm|end)\b/i,
+];
+
+function clientSideCheck(text) {
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(text)) {
+      for (const tp of THREAT_PATTERNS) {
+        if (tp.test(text)) return { safe: false, reason: 'threat' };
+      }
+      if (/https?:\/\/|buy\s+now|click\s+here|promo/i.test(text)) return { safe: false, reason: 'spam' };
+      if (/\b\d{3}[-.\s]?\d{2,3}[-.\s]?\d{4}\b/.test(text)) return { safe: false, reason: 'personal-info' };
+      return { safe: false, reason: 'explicit' };
+    }
+  }
+  return { safe: true };
+}
+
+// TODO: replace with a call to your own backend endpoint (never expose API keys client-side)
+async function aiModCheck(text) {
+  return { safe: true };
+}
+
+const MOD_MESSAGES = {
+  'explicit': "Your feelings are valid, but this contains explicit content that isn't safe for others to read. Try focusing on how you feel rather than graphic details.",
+  'threat': "This reads like a specific threat. The pit is for feelings, not plans. If you're in a tough place, consider reaching out to someone you trust.",
+  'spam': "This looks like spam or promotional content. The pit is for feelings only.",
+  'personal-info': "This seems to contain personal identifying information. For everyone's safety, we can't post that. Remove names, numbers, or addresses and try again.",
+  'default': "Your feelings are valid, but this content isn't safe for others to read. Try rewriting it focused on how you feel.",
+};
+
+let contentFlagged = false;
+
+async function handleNext() {
+  const text = document.getElementById('dumpText').value.trim();
+  if (!text) return;
+
+  const banner = document.getElementById('modBanner');
+  const textarea = document.getElementById('dumpText');
+  const btn = document.getElementById('dumpNext');
+
+  if (destination === 'void') {
+    contentFlagged = false;
+    banner.classList.remove('visible');
+    textarea.classList.remove('flagged');
+    goTo('feelings');
+    return;
+  }
+
+  btn.textContent = 'Checking…';
+  btn.disabled = true;
+
+  const clientResult = clientSideCheck(text);
+  if (!clientResult.safe) {
+    flagContent(clientResult.reason);
+    btn.textContent = 'Name it →';
+    btn.disabled = false;
+    return;
+  }
+
+  const aiResult = await aiModCheck(text);
+  if (!aiResult.safe) {
+    flagContent(aiResult.reason || 'default');
+    btn.textContent = 'Name it →';
+    btn.disabled = false;
+    return;
+  }
+
+  contentFlagged = false;
+  banner.classList.remove('visible');
+  textarea.classList.remove('flagged');
+  btn.textContent = 'Name it →';
+  btn.disabled = false;
+  goTo('feelings');
+}
+
+function flagContent(reason) {
+  contentFlagged = true;
+  const banner = document.getElementById('modBanner');
+  const textarea = document.getElementById('dumpText');
+  document.getElementById('modReason').textContent = MOD_MESSAGES[reason] || MOD_MESSAGES['default'];
+  banner.classList.add('visible');
+  textarea.classList.add('flagged');
+  textarea.addEventListener('input', function unflag() {
+    textarea.classList.remove('flagged');
+    banner.classList.remove('visible');
+    contentFlagged = false;
+    textarea.removeEventListener('input', unflag);
+  });
+}
+
+function switchToVoid() {
+  destination = 'void';
+  updateDestUI();
+  contentFlagged = false;
+  document.getElementById('modBanner').classList.remove('visible');
+  document.getElementById('dumpText').classList.remove('flagged');
+  goTo('feelings');
+}
+
+// ─── STORAGE ───
+const SEED = [
+  { text: "I gave everything to that project and they just handed the credit to someone who showed up for the last two weeks.", feelings: [{label:'frustrated',category:'mad'},{label:'insignificant',category:'scared'}] },
+  { text: "My best friend got engaged and I smiled and said all the right things but inside I felt this ugly jealousy I didn't know what to do with.", feelings: [{label:'jealous',category:'mad'},{label:'lonely',category:'sad'}] },
+  { text: "I keep refreshing my email even though it's been four days and I already know what the silence means.", feelings: [{label:'anxious',category:'scared'},{label:'helpless',category:'scared'}] },
+  { text: "My therapist cancelled on me for the third time this month and I can't even be mad because I know she's busy.", feelings: [{label:'rejected',category:'scared'},{label:'lonely',category:'sad'}] },
+  { text: "I overheard my coworkers planning lunch without me again.", feelings: [{label:'lonely',category:'sad'},{label:'embarrassed',category:'scared'}] },
+  { text: "Everyone keeps telling me how strong I am and I want to scream because I'm not strong I'm just too tired to fall apart where anyone can see me.", feelings: [{label:'tired',category:'sad'},{label:'overwhelmed',category:'scared'}] },
+  { text: "I said I'm fine eleven times today. I counted.", feelings: [{label:'lonely',category:'sad'},{label:'apathetic',category:'sad'}] },
+  { text: "My mom called and I let it go to voicemail. Then I listened to it three times. She just wanted to know if I'd eaten today. I hadn't.", feelings: [{label:'guilty',category:'sad'},{label:'ashamed',category:'sad'}] },
+  { text: "I finished the marathon and the first thing I thought at the finish line was that my dad would never know.", feelings: [{label:'proud',category:'powerful'},{label:'lonely',category:'sad'}] },
+  { text: "She hid under the bed for four hours then came out and put her paw on my hand. I haven't been chosen by anyone in so long.", feelings: [{label:'hopeful',category:'joyful'},{label:'thankful',category:'peaceful'}] },
+  { text: "I got the job and the first person I wanted to tell was the friend I cut off six months ago.", feelings: [{label:'excited',category:'joyful'},{label:'lonely',category:'sad'}] },
+  { text: "My kid drew a picture of our family today and I'm in it. After the divorce I wasn't sure I would be.", feelings: [{label:'thankful',category:'peaceful'},{label:'hopeful',category:'joyful'}] },
+  { text: "I don't want advice. I don't want perspective. I just want someone to say yeah that really sucks.", feelings: [{label:'frustrated',category:'mad'},{label:'lonely',category:'sad'}] },
+  { text: "I'm so tired of being the one who reaches out first.", feelings: [{label:'tired',category:'sad'},{label:'lonely',category:'sad'}] },
+  { text: "Nobody tells you that grief isn't a phase. It's a room you keep walking back into.", feelings: [{label:'lonely',category:'sad'},{label:'helpless',category:'scared'}] },
+];
+
+function loadEntries() {
+  try {
+    const s = localStorage.getItem('feelings-pit-entries');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return [...SEED];
+}
+function saveEntries() {
+  try { localStorage.setItem('feelings-pit-entries', JSON.stringify(pitEntries)); } catch(e) {}
+}
+
+let pitEntries = loadEntries();
+let destination = 'pit';
+let selectedFeelings = [];
+
+const catColors = {
+  sad: 'var(--sad)', mad: 'var(--mad)', scared: 'var(--scared)',
+  joyful: 'var(--joyful)', powerful: 'var(--powerful)', peaceful: 'var(--peaceful)',
+};
+const catHex = {
+  sad: '#5b8fb9', mad: '#d4764e', scared: '#c9a84c',
+  joyful: '#d4b84e', powerful: '#7db87a', peaceful: '#6aaa7a',
+};
+
+// ─── FLOATING QUOTES ───
+let quoteAnimId = null, quoteItems = [];
+function initQuotes() {
+  const bg = document.getElementById('quotesBg');
+  bg.innerHTML = '';
+  quoteItems = [];
+  if (!pitEntries.length) return;
+  const shuffled = [...pitEntries].sort(() => Math.random() - 0.5);
+  const count = Math.min(shuffled.length, 12);
+  const containerH = window.innerHeight;
+  const laneH = containerH / count;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'floating-quote';
+    el.textContent = shuffled[i].text;
+    const sizes = [0.85, 1, 1.15, 1.35, 1.6, 1.9];
+    el.style.fontSize = sizes[Math.floor(Math.random() * sizes.length)] + 'em';
+    const baseOpacity = 0.06 + Math.random() * 0.1;
+    const y = (i * laneH) + Math.random() * (laneH * 0.6);
+    const goRight = Math.random() > 0.5;
+    const speed = 0.2 + Math.random() * 0.4;
+    bg.appendChild(el);
+    const w = el.offsetWidth || 400;
+    const pageW = window.innerWidth;
+    const totalTravel = pageW + w + 100;
+    const offset = (i / count) * totalTravel;
+    const x = goRight ? -w - 50 + offset : pageW + 50 - offset;
+    quoteItems.push({ el, x, y, speed: goRight ? speed : -speed, width: w, baseOpacity, goRight });
+    el.style.top = y + 'px';
+  }
+  animateQuotes();
+}
+function animateQuotes() {
+  const pageW = window.innerWidth;
+  quoteItems.forEach(q => {
+    q.x += q.speed;
+    if (q.goRight && q.x > pageW + 50) q.x = -q.width - 50;
+    else if (!q.goRight && q.x < -q.width - 50) q.x = pageW + 50;
+    q.el.style.transform = `translateX(${q.x}px)`;
+    q.el.style.left = '0px';
+    if (!q.el.matches(':hover')) q.el.style.opacity = q.baseOpacity;
+  });
+  quoteAnimId = requestAnimationFrame(animateQuotes);
+}
+function stopQuotes() {
+  if (quoteAnimId) { cancelAnimationFrame(quoteAnimId); quoteAnimId = null; }
+}
+
+// ─── WHEEL ───
+const cats = [
+  { name: 'sad',     color: '#5b8fb9', light: '#85afd0', start: 210, span: 60 },
+  { name: 'mad',     color: '#d4764e', light: '#e09872', start: 270, span: 60 },
+  { name: 'scared',  color: '#c9a84c', light: '#d9bf6e', start: 330, span: 60 },
+  { name: 'joyful',  color: '#d4b84e', light: '#e0cc6e', start:  30, span: 60 },
+  { name: 'powerful',color: '#7db87a', light: '#9ecea0', start:  90, span: 60 },
+  { name: 'peaceful',color: '#6aaa7a', light: '#90c49c', start: 150, span: 60 },
+];
+const feelings = {
+  sad:     { inner: ['guilty','ashamed','depressed','lonely','bored','tired'],          outer: ['remorseful','stupid','inferior','isolated','apathetic','sleepy','distant','sarcastic'] },
+  mad:     { inner: ['hostile','angry','selfish','hateful','critical','frustrated'],    outer: ['jealous','irritated','skeptical','sarcastic'] },
+  scared:  { inner: ['confused','rejected','helpless','submissive','insecure','anxious'], outer: ['bewildered','discouraged','insignificant','inadequate','embarrassed','overwhelmed'] },
+  joyful:  { inner: ['excited','sensuous','energetic','cheerful','creative','hopeful'], outer: ['daring','fascinating','stimulating','amused','playful','optimistic'] },
+  powerful:{ inner: ['aware','proud','respected','appreciated','important','faithful'],  outer: ['confident','discerning','valuable','worthwhile','surprised','successful'] },
+  peaceful:{ inner: ['content','thoughtful','intimate','loving','trusting','nurturing'], outer: ['relaxed','pensive','responsive','serene','secure','thankful'] },
+};
+const CX = 350, CY = 350, R_CORE = 55, R_INNER = 145, R_EDGE = 335;
+
+function segPath(cx, cy, r1, r2, a1, a2) {
+  const toR = d => (d - 90) * Math.PI / 180;
+  const s = toR(a1), e = toR(a2);
+  const span = ((a2 - a1) + 360) % 360;
+  const lg = span > 180 ? 1 : 0;
+  return `M${cx+r2*Math.cos(s)},${cy+r2*Math.sin(s)} A${r2},${r2} 0 ${lg} 1 ${cx+r2*Math.cos(e)},${cy+r2*Math.sin(e)} L${cx+r1*Math.cos(e)},${cy+r1*Math.sin(e)} A${r1},${r1} 0 ${lg} 0 ${cx+r1*Math.cos(s)},${cy+r1*Math.sin(s)} Z`;
+}
+
+function buildWheel() {
+  const svg = document.getElementById('feelingsWheel');
+  svg.innerHTML = '';
+  const core = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  core.setAttribute('cx', CX); core.setAttribute('cy', CY); core.setAttribute('r', R_CORE);
+  core.setAttribute('fill', '#1e1e28');
+  svg.appendChild(core);
+
+  cats.forEach(cat => {
+    const mid = (cat.start + cat.span / 2) % 360;
+    const a = (mid - 90) * Math.PI / 180;
+    const r = R_CORE * 0.62;
+    const cl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    cl.setAttribute('x', CX + r * Math.cos(a));
+    cl.setAttribute('y', CY + r * Math.sin(a));
+    cl.setAttribute('text-anchor', 'middle');
+    cl.setAttribute('dominant-baseline', 'central');
+    cl.setAttribute('fill', cat.light);
+    cl.setAttribute('font-family', 'Space Mono, monospace');
+    cl.setAttribute('font-size', '9');
+    cl.setAttribute('font-weight', '700');
+    cl.textContent = cat.name.toUpperCase();
+    svg.appendChild(cl);
+
+    const data = feelings[cat.name];
+    data.inner.forEach((f, i) => {
+      const sp = cat.span / data.inner.length;
+      makeSeg(svg, R_CORE, R_INNER, cat.start + i * sp, cat.start + (i + 1) * sp, cat.color, f, cat.name);
+    });
+    data.outer.forEach((f, i) => {
+      const sp = cat.span / data.outer.length;
+      makeSeg(svg, R_INNER, R_EDGE, cat.start + i * sp, cat.start + (i + 1) * sp, cat.light, f, cat.name);
+    });
+  });
+}
+
+function makeSeg(svg, r1, r2, a1, a2, fill, label, category) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('wheel-segment');
+  g.dataset.feeling = label;
+  g.dataset.category = category;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', segPath(CX, CY, r1, r2, a1, a2));
+  path.setAttribute('fill', fill);
+  g.appendChild(path);
+
+  const span = ((a2 - a1) + 360) % 360;
+  const midDeg = (a1 + span / 2) % 360;
+  const a = (midDeg - 90) * Math.PI / 180;
+  const lr = (r1 + r2) / 2;
+  const lx = CX + lr * Math.cos(a), ly = CY + lr * Math.sin(a);
+  const rot = midDeg > 180 ? midDeg + 90 : midDeg - 90;
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', lx); text.setAttribute('y', ly);
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'central');
+  text.setAttribute('fill', '#0a0a0c');
+  text.setAttribute('font-family', 'Space Mono, monospace');
+  text.setAttribute('font-size', '9');
+  text.setAttribute('font-weight', '700');
+  text.setAttribute('transform', `rotate(${rot},${lx},${ly})`);
+  text.setAttribute('opacity', '0.8');
+  text.textContent = label;
+  g.appendChild(text);
+
+  g.addEventListener('mouseenter', () => showHover(label, category));
+  g.addEventListener('mouseleave', hideHover);
+  g.addEventListener('click', () => { toggleWheel(label, category, g); hideHover(); });
+  g.addEventListener('touchstart', e => { e.preventDefault(); showHover(label, category); });
+  g.addEventListener('touchend', e => { e.preventDefault(); toggleWheel(label, category, g); setTimeout(hideHover, 400); });
+  svg.appendChild(g);
+}
+
+const hoverEl = document.getElementById('hoverLabel');
+function showHover(l, c) {
+  hoverEl.querySelector('.cat-label').textContent = c;
+  hoverEl.querySelector('.cat-label').style.color = catHex[c];
+  hoverEl.querySelector('.feeling-label').textContent = l;
+  hoverEl.style.borderColor = catHex[c] + '55';
+  hoverEl.classList.add('visible');
+}
+function hideHover() { hoverEl.classList.remove('visible'); }
+
+function toggleWheel(label, category, gEl) {
+  const idx = selectedFeelings.findIndex(f => f.label === label);
+  if (idx > -1) {
+    selectedFeelings.splice(idx, 1);
+    gEl.classList.remove('selected');
+    const p = document.querySelector(`.selected-pill[data-feeling="${label}"]`);
+    if (p) { p.classList.add('removing'); setTimeout(() => p.remove(), 250); }
+  } else {
+    selectedFeelings.push({ label, category });
+    gEl.classList.add('selected');
+    addPill(label, category);
+  }
+  document.getElementById('releaseBtn').disabled = selectedFeelings.length === 0;
+}
+
+function addPill(label, category) {
+  const pill = document.createElement('span');
+  pill.className = 'selected-pill';
+  pill.dataset.feeling = label;
+  pill.style.background = catColors[category];
+  pill.innerHTML = `${label} <span class="x">×</span>`;
+  pill.addEventListener('click', () => {
+    const i = selectedFeelings.findIndex(f => f.label === label);
+    if (i > -1) selectedFeelings.splice(i, 1);
+    const s = document.querySelector(`.wheel-segment[data-feeling="${label}"]`);
+    if (s) s.classList.remove('selected');
+    pill.classList.add('removing');
+    setTimeout(() => pill.remove(), 250);
+    document.getElementById('releaseBtn').disabled = selectedFeelings.length === 0;
+  });
+  document.getElementById('selectedPills').appendChild(pill);
+}
+
+// ─── TIMESTAMPS ───
+function relTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'yesterday';
+  if (d < 7) return `${d}d ago`;
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// ─── NAV ───
+function goTo(id) {
+  stopQuotes();
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const t = document.getElementById(id);
+  t.classList.add('active');
+  t.style.animation = 'none';
+  t.offsetHeight;
+  t.style.animation = 'fadeIn 0.5s ease';
+  if (id === 'read') renderRead();
+  if (id === 'splash') initQuotes();
+  window.scrollTo(0, 0);
+}
+
+function goHome() {
+  destination = 'pit';
+  selectedFeelings = [];
+  contentFlagged = false;
+  document.getElementById('dumpText').value = '';
+  document.getElementById('charCount').textContent = '';
+  document.getElementById('selectedPills').innerHTML = '';
+  document.getElementById('modBanner').classList.remove('visible');
+  document.getElementById('dumpText').classList.remove('flagged');
+  document.querySelectorAll('.wheel-segment.selected').forEach(s => s.classList.remove('selected'));
+  document.getElementById('dumpNext').disabled = true;
+  document.getElementById('dumpNext').textContent = 'Name it →';
+  document.getElementById('releaseBtn').disabled = true;
+  updateDestUI();
+  goTo('splash');
+}
+
+function updateDestUI() {
+  const d = document.getElementById('dumpDest');
+  const r = document.getElementById('releaseBtn');
+  if (destination === 'pit') {
+    d.textContent = '→ The Pit';   d.className = 'dump-destination pit';
+    r.textContent = 'Release into the Pit';  r.className = 'release-btn pit';
+  } else {
+    d.textContent = '→ The Void';  d.className = 'dump-destination void';
+    r.textContent = 'Release into the Void'; r.className = 'release-btn void';
+  }
+}
+
+function chooseDest(dest) {
+  destination = dest;
+  updateDestUI();
+  goTo('dump');
+}
+
+function releaseIt() {
+  const text = document.getElementById('dumpText').value.trim();
+  if (destination === 'pit' && text) {
+    pitEntries.unshift({ text, feelings: [...selectedFeelings], ts: Date.now() });
+    saveEntries();
+  }
+  document.getElementById('doneTitle').textContent = destination === 'pit' ? 'Released.' : 'Gone.';
+  document.getElementById('doneSubtitle').textContent = destination === 'pit'
+    ? 'Your words are in the pit. Someone may witness them.'
+    : 'Your words went nowhere. They belonged to you and now they\'re gone.';
+  const df = document.getElementById('doneFeelings');
+  df.innerHTML = '';
+  selectedFeelings.forEach(f => {
+    const t = document.createElement('span');
+    t.className = 'done-feeling';
+    t.textContent = f.label;
+    t.style.background = catColors[f.category];
+    df.appendChild(t);
+  });
+  goTo('done');
+}
+
+function anotherRound() {
+  selectedFeelings = [];
+  contentFlagged = false;
+  document.getElementById('dumpText').value = '';
+  document.getElementById('charCount').textContent = '';
+  document.getElementById('selectedPills').innerHTML = '';
+  document.getElementById('modBanner').classList.remove('visible');
+  document.getElementById('dumpText').classList.remove('flagged');
+  document.querySelectorAll('.wheel-segment.selected').forEach(s => s.classList.remove('selected'));
+  document.getElementById('dumpNext').disabled = true;
+  document.getElementById('dumpNext').textContent = 'Name it →';
+  document.getElementById('releaseBtn').disabled = true;
+  goTo('choice');
+}
+
+function renderRead() {
+  const c = document.getElementById('readEntries');
+  c.innerHTML = '';
+  if (!pitEntries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-pit';
+    empty.textContent = 'The pit is quiet. Nothing here yet.';
+    c.appendChild(empty);
+    return;
+  }
+  pitEntries.forEach((e, i) => {
+    const d = document.createElement('div');
+    d.className = 'read-entry';
+    d.style.animationDelay = `${i * 0.06}s`;
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'read-entry-text';
+    textDiv.textContent = e.text;
+
+    const meta = document.createElement('div');
+    meta.className = 'read-entry-meta';
+
+    const feelingsDiv = document.createElement('div');
+    feelingsDiv.className = 'read-entry-feelings';
+    (e.feelings || []).forEach(f => {
+      const span = document.createElement('span');
+      span.className = 'read-feeling-tag';
+      span.style.background = catColors[f.category] || '#555';
+      span.textContent = f.label;
+      feelingsDiv.appendChild(span);
+    });
+
+    meta.appendChild(feelingsDiv);
+
+    if (e.ts) {
+      const time = document.createElement('span');
+      time.className = 'read-entry-time';
+      time.textContent = relTime(e.ts);
+      meta.appendChild(time);
+    }
+
+    d.appendChild(textDiv);
+    d.appendChild(meta);
+    c.appendChild(d);
+  });
+}
+
+// ─── CHAR COUNTER ───
+document.getElementById('dumpText').addEventListener('input', function() {
+  document.getElementById('dumpNext').disabled = this.value.trim().length === 0;
+  document.getElementById('dumpNext').textContent = 'Name it →';
+  const len = this.value.length;
+  const counter = document.getElementById('charCount');
+  if (len > 200) {
+    counter.textContent = len.toLocaleString();
+    counter.classList.toggle('warn', len > 2000);
+  } else {
+    counter.textContent = '';
+  }
+});
+
+// ─── INIT ───
+buildWheel();
+initQuotes();
+</script>
+</body>
+</html>
