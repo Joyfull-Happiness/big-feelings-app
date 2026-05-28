@@ -154,7 +154,7 @@
   }
   .floating-quote {
     position: absolute; line-height: 1.5; opacity: 0;
-    white-space: nowrap; cursor: default;
+    white-space: nowrap; cursor: pointer;
     pointer-events: all;
     transition: opacity 0.5s, font-size 0.2s ease;
   }
@@ -163,6 +163,11 @@
     font-size: 2.2em !important;
     z-index: 50;
   }
+  @keyframes entryFlash {
+    0%   { background: rgba(201,123,58,0.12); }
+    100% { background: transparent; }
+  }
+  .entry-highlight { animation: entryFlash 1.8s ease forwards; }
   .choice-col {
     flex: 1; display: flex; flex-direction: column;
     justify-content: center; align-items: center;
@@ -781,6 +786,8 @@ function initQuotes() {
     const speed   = 0.12 + Math.random() * 0.22;
 
     el.textContent = shuffled[i].text;
+    const entryIdx = pitEntries.indexOf(shuffled[i]);
+    el.addEventListener('click', () => goToEntry(entryIdx));
     bg.appendChild(el);
 
     const w = el.offsetWidth || 500;
@@ -1078,6 +1085,19 @@ document.addEventListener('click', e => {
 function showAbout() { document.getElementById('aboutOverlay').classList.add('open'); }
 function hideAbout() { document.getElementById('aboutOverlay').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key==='Escape') hideAbout(); });
+
+// ─── QUOTE NAVIGATION ───
+function goToEntry(idx) {
+  goTo('read');
+  setTimeout(() => {
+    const entries = document.querySelectorAll('.read-entry');
+    const target = entries[idx];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('entry-highlight');
+    target.addEventListener('animationend', () => target.classList.remove('entry-highlight'), { once: true });
+  }, 80);
+}
 
 // ─── INIT ───
 buildWheel();
