@@ -786,8 +786,8 @@ function initQuotes() {
     const speed   = 0.12 + Math.random() * 0.22;
 
     el.textContent = shuffled[i].text;
-    const entryIdx = pitEntries.indexOf(shuffled[i]);
-    el.addEventListener('click', () => goToEntry(entryIdx));
+    const entryText = shuffled[i].text;
+    el.addEventListener('click', () => goToEntry(entryText));
     bg.appendChild(el);
 
     const w = el.offsetWidth || 500;
@@ -997,23 +997,45 @@ function updateDestUI() {
     setStatus('dump','GOING TO THE VOID');
   }
 }
-function releaseIt() {
-  const text=document.getElementById('dumpText').value.trim();
-  if (destination==='pit'&&text) {
-    pitEntries.unshift({text,feelings:[...selectedFeelings],ts:Date.now()});
-    saveEntries();
+async function releaseIt() {
+  const text = document.getElementById('dumpText').value.trim();
+  const btn  = document.getElementById('releaseBtn');
+
+  if (destination === 'pit' && text) {
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+    try {
+      const res  = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, feelings: [...selectedFeelings] }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        btn.textContent = 'Release into the Pit';
+        btn.disabled = selectedFeelings.length === 0;
+        if (data.blocked) { goTo('dump'); flagContent(data.reason || 'explicit'); return; }
+        throw new Error(data.error || 'Post failed');
+      }
+    } catch (err) {
+      console.error('Release failed:', err);
+      btn.textContent = 'Release into the Pit';
+      btn.disabled = false;
+      return;
+    }
   }
-  const isPit = destination==='pit';
+
+  const isPit = destination === 'pit';
   document.getElementById('doneTitle').textContent    = isPit ? 'Released.' : 'Gone.';
   document.getElementById('doneSubtitle').textContent = isPit
     ? 'Your words are in the pit. Someone may witness them.'
-    : 'Your words went nowhere. They belonged to you and now they\'re gone.';
+    : "Your words went nowhere. They belonged to you and now they're gone.";
   setStatus('done', isPit ? 'YOUR WORDS ARE WITNESSED' : 'GONE. NO TRACE.');
-  const df=document.getElementById('doneFeelings'); df.innerHTML='';
-  selectedFeelings.forEach(f=>{
-    const t=document.createElement('span');
-    t.className='done-feeling'; t.textContent=f.label;
-    t.style.background=catColors[f.category]; df.appendChild(t);
+  const df = document.getElementById('doneFeelings'); df.innerHTML = '';
+  selectedFeelings.forEach(f => {
+    const t = document.createElement('span');
+    t.className = 'done-feeling'; t.textContent = f.label;
+    t.style.background = catColors[f.category]; df.appendChild(t);
   });
   goTo('done');
 }
@@ -1029,34 +1051,65 @@ function anotherRound() {
   document.getElementById('releaseBtn').disabled=true;
   goTo('choice');
 }
-function renderRead() {
-  const c=document.getElementById('readEntries'); c.innerHTML='';
-  if (!pitEntries.length) {
-    const empty=document.createElement('div'); empty.className='empty-pit';
-    empty.textContent='The pit is quiet. Nothing here yet.'; c.appendChild(empty); return;
-  }
-  setStatus('read',`WITNESSING — ${pitEntries.length} ENTRIES`);
-  pitEntries.forEach((e,i)=>{
-    const d=document.createElement('div');
-    d.className='read-entry'; d.style.animationDelay=`${i*0.05}s`;
-    const textDiv=document.createElement('div');
-    textDiv.className='read-entry-text'; textDiv.textContent=e.text;
-    const meta=document.createElement('div'); meta.className='read-entry-meta';
-    const feelingsDiv=document.createElement('div'); feelingsDiv.className='read-entry-feelings';
-    (e.feelings||[]).forEach(f=>{
-      const span=document.createElement('span');
-      span.className='read-feeling-tag';
-      span.style.background=catColors[f.category]||'#555';
-      span.textContent=f.label; feelingsDiv.appendChild(span);
-    });
-    meta.appendChild(feelingsDiv);
-    if (e.ts) {
-      const time=document.createElement('span');
-      time.className='read-entry-time'; time.textContent=relTime(e.ts);
-      meta.appendChild(time);
-    }
-    d.appendChild(textDiv); d.appendChild(meta); c.appendChild(d);
+function buildEntryEl(e, i) {
+  const d = document.createElement('div');
+  d.className = 'read-entry'; d.style.animationDelay = `${i * 0.05}s`;
+  const textDiv = document.createElement('div');
+  textDiv.className = 'read-entry-text'; textDiv.textContent = e.text;
+  const meta = document.createElement('div'); meta.className = 'read-entry-meta';
+  const feelingsDiv = document.createElement('div'); feelingsDiv.className = 'read-entry-feelings';
+  (e.feelings || []).forEach(f => {
+    const span = document.createElement('span');
+    span.className = 'read-feeling-tag';
+    span.style.background = catColors[f.category] || '#555';
+    span.textContent = f.label; feelingsDiv.appendChild(span);
   });
+  meta.appendChild(feelingsDiv);
+  const ts = e.created_at || e.ts;
+  if (ts) {
+    const time = document.createElement('span');
+    time.className = 'read-entry-time';
+    time.textContent = relTime(typeof ts === 'number' ? ts : new Date(ts).getTime());
+    meta.appendChild(time);
+  }
+  d.appendChild(textDiv); d.appendChild(meta);
+  return d;
+}
+
+async function renderRead() {
+  const c = document.getElementById('readEntries');
+  c.innerHTML = '<div class="empty-pit" style="opacity:0.4">Loading…</div>';
+  try {
+    const res = await fetch('/api/posts');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const entries = await res.json();
+    c.innerHTML = '';
+    if (!entries.length) {
+      const empty = document.createElement('div'); empty.className = 'empty-pit';
+      empty.textContent = 'The pit is quiet. Nothing here yet.'; c.appendChild(empty);
+    } else {
+      setStatus('read', `WITNESSING — ${entries.length} ENTRIES`);
+      entries.forEach((e, i) => c.appendChild(buildEntryEl(e, i)));
+    }
+    // scroll to pending quote target if any
+    if (pendingScrollTarget) {
+      const target = pendingScrollTarget; pendingScrollTarget = null;
+      for (const entry of c.querySelectorAll('.read-entry')) {
+        if (entry.querySelector('.read-entry-text')?.textContent.trim() === target.trim()) {
+          setTimeout(() => {
+            entry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            entry.classList.add('entry-highlight');
+            entry.addEventListener('animationend', () => entry.classList.remove('entry-highlight'), { once: true });
+          }, 60);
+          break;
+        }
+      }
+    }
+  } catch(err) {
+    c.innerHTML = '';
+    const errEl = document.createElement('div'); errEl.className = 'empty-pit';
+    errEl.textContent = 'Could not reach the pit. Try again later.'; c.appendChild(errEl);
+  }
 }
 
 // ─── CHAR COUNTER ───
@@ -1087,16 +1140,10 @@ function hideAbout() { document.getElementById('aboutOverlay').classList.remove(
 document.addEventListener('keydown', e => { if (e.key==='Escape') hideAbout(); });
 
 // ─── QUOTE NAVIGATION ───
-function goToEntry(idx) {
-  goTo('read');
-  setTimeout(() => {
-    const entries = document.querySelectorAll('.read-entry');
-    const target = entries[idx];
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target.classList.add('entry-highlight');
-    target.addEventListener('animationend', () => target.classList.remove('entry-highlight'), { once: true });
-  }, 80);
+let pendingScrollTarget = null;
+function goToEntry(text) {
+  pendingScrollTarget = text;
+  goTo('read'); // renderRead() is async and checks pendingScrollTarget when done
 }
 
 // ─── INIT ───
