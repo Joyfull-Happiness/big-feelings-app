@@ -154,22 +154,36 @@
   }
   .floating-quote {
     position: absolute; line-height: 1.5; opacity: 0;
-    white-space: nowrap; cursor: default; transition: opacity 0.5s;
+    white-space: nowrap; cursor: default;
+    pointer-events: all;
+    transition: opacity 0.5s, font-size 0.2s ease;
+  }
+  .floating-quote:hover {
+    opacity: 0.75 !important;
+    font-size: 2.2em !important;
+    z-index: 50;
   }
   .choice-col {
     flex: 1; display: flex; flex-direction: column;
-    justify-content: center; align-items: center; text-align: center;
-    padding: 60px 80px; cursor: pointer;
-    position: relative; z-index: 10;
-    transition: background 0.45s;
+    justify-content: center; align-items: center;
+    position: relative; z-index: 1;
+    pointer-events: none;
+    transition: opacity 0.4s;
   }
-  .choice-col:hover { background: var(--surface-hover); }
   .choice-col.void { border-left: 1px solid var(--divider); }
-  /* Dim the sibling column when one is hovered */
-  .choice-screen:has(.choice-col.pit:hover)  .choice-col.void,
-  .choice-screen:has(.choice-col.void:hover) .choice-col.pit {
-    opacity: 0.45; transition: opacity 0.4s;
+  /* Dim the sibling column when a card is hovered */
+  .choice-screen:has(.choice-col.pit .choice-card:hover)  .choice-col.void,
+  .choice-screen:has(.choice-col.void .choice-card:hover) .choice-col.pit {
+    opacity: 0.45;
   }
+  .choice-card {
+    pointer-events: all; cursor: pointer; text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 36px 52px; border-radius: 6px;
+    transition: background 0.4s;
+    position: relative; z-index: 10;
+  }
+  .choice-card:hover { background: var(--surface-hover); }
 
   .choice-dest-label {
     font-family: 'Space Mono', monospace; font-size: 1.8em;
@@ -180,7 +194,7 @@
 
   .choice-title {
     font-family: 'DM Serif Display', serif;
-    font-size: clamp(9em, 21vw, 16.5em);
+    font-size: clamp(4.5em, 10.5vw, 8.25em);
     line-height: 1; letter-spacing: -0.02em;
     margin-bottom: 28px;
   }
@@ -201,7 +215,7 @@
   }
   .choice-col.pit  .choice-cta { color: var(--pit-color); }
   .choice-col.void .choice-cta { color: var(--void-color); }
-  .choice-col:hover .choice-cta { opacity: 1; transform: translateY(0); }
+  .choice-card:hover .choice-cta { opacity: 1; transform: translateY(0); }
 
   /* ─── DUMP ─── */
   .dump-screen {
@@ -509,18 +523,22 @@
   <div id="choice" class="screen choice-screen active">
     <div id="quotesBg" class="quotes-bg"></div>
 
-    <div class="choice-col pit" onclick="chooseDest('pit')">
-      <p class="choice-dest-label">Destination One</p>
-      <h2 class="choice-title">The Pit</h2>
-      <p class="choice-desc">Your words go anonymous, <em>others can read them</em>, you will be witnessed.</p>
-      <p class="choice-cta">Descend</p>
+    <div class="choice-col pit">
+      <div class="choice-card" onclick="chooseDest('pit')">
+        <p class="choice-dest-label">Destination One</p>
+        <h2 class="choice-title">The Pit</h2>
+        <p class="choice-desc">Your words go anonymous, <em>others can read them</em>, you will be witnessed.</p>
+        <p class="choice-cta">Descend</p>
+      </div>
     </div>
 
-    <div class="choice-col void" onclick="chooseDest('void')">
-      <p class="choice-dest-label">Destination Two</p>
-      <h2 class="choice-title">The Void</h2>
-      <p class="choice-desc">Your words go <em>literally nowhere</em>. Pure catharsis with zero audience.</p>
-      <p class="choice-cta">Dissolve</p>
+    <div class="choice-col void">
+      <div class="choice-card" onclick="chooseDest('void')">
+        <p class="choice-dest-label">Destination Two</p>
+        <h2 class="choice-title">The Void</h2>
+        <p class="choice-desc">Your words go <em>literally nowhere</em>. Pure catharsis with zero audience.</p>
+        <p class="choice-cta">Dissolve</p>
+      </div>
     </div>
   </div>
 
