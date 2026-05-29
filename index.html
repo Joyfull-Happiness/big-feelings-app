@@ -663,6 +663,7 @@ async function handleNext() {
 
   if (destination === 'void') {
     clearModState();
+    document.getElementById('releaseBtn').disabled = false;
     goTo('feelings');
     return;
   }
@@ -679,6 +680,7 @@ async function handleNext() {
   clearModState();
   btn.textContent = 'Name it →';
   btn.disabled = false;
+  document.getElementById('releaseBtn').disabled = false;
   goTo('feelings');
 }
 
@@ -897,7 +899,6 @@ function toggleWheel(label,category,gEl) {
   } else {
     selectedFeelings.push({label,category}); gEl.classList.add('selected'); addPill(label,category);
   }
-  document.getElementById('releaseBtn').disabled = selectedFeelings.length===0;
 }
 function addPill(label,category) {
   const pill=document.createElement('span');
@@ -911,7 +912,6 @@ function addPill(label,category) {
     if(s) s.classList.remove('selected');
     pill.classList.add('removing');
     setTimeout(()=>pill.remove(),220);
-    document.getElementById('releaseBtn').disabled=selectedFeelings.length===0;
   });
   document.getElementById('selectedPills').appendChild(pill);
 }
@@ -1017,6 +1017,16 @@ async function releaseIt() {
         if (data.blocked) { goTo('dump'); flagContent(data.reason || 'explicit'); return; }
         throw new Error(data.error || 'Post failed');
       }
+      pendingScrollTarget = text;
+      selectedFeelings = [];
+      document.getElementById('dumpText').value = '';
+      document.getElementById('charCount').textContent = '';
+      document.getElementById('selectedPills').innerHTML = '';
+      document.querySelectorAll('.wheel-segment.selected').forEach(s => s.classList.remove('selected'));
+      document.getElementById('dumpNext').disabled = true;
+      document.getElementById('releaseBtn').disabled = true;
+      goTo('read');
+      return;
     } catch (err) {
       console.error('Release failed:', err);
       btn.textContent = 'Release into the Pit';
@@ -1025,12 +1035,10 @@ async function releaseIt() {
     }
   }
 
-  const isPit = destination === 'pit';
-  document.getElementById('doneTitle').textContent    = isPit ? 'Released.' : 'Gone.';
-  document.getElementById('doneSubtitle').textContent = isPit
-    ? 'Your words are in the pit. Someone may witness them.'
-    : "Your words went nowhere. They belonged to you and now they're gone.";
-  setStatus('done', isPit ? 'YOUR WORDS ARE WITNESSED' : 'GONE. NO TRACE.');
+  // Void path
+  document.getElementById('doneTitle').textContent    = 'Gone.';
+  document.getElementById('doneSubtitle').textContent = "Your words went nowhere. They belonged to you and now they're gone.";
+  setStatus('done', 'GONE. NO TRACE.');
   const df = document.getElementById('doneFeelings'); df.innerHTML = '';
   selectedFeelings.forEach(f => {
     const t = document.createElement('span');
